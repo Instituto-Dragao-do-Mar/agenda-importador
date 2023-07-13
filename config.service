@@ -1,0 +1,14 @@
+[Unit]
+Description=Service that colects data from Mapas Culturais API
+
+[Service]
+Type=notify
+WorkingDirectory=/usr/bin/dotnet
+ExecStart=/usr/bin/dotnet/dotnet /usr/bin/Build/mapasculturais_service.dll
+Restart=always
+RestartSec=10
+SyslogIdentifier=import-service
+
+Environment=ASPNETCORE_ENVIRONMENT=Development
+[Install]
+WantedBy=multi-user.target
