@@ -101,5 +101,8 @@ public class Event : BaseEntity
         
         [JsonPropertyName("@files:avatar")]
         public FilesAvatar? FilesAvatar { get; set; }
+        
+        [JsonPropertyName("excluido")]
+        public string? Excluido { get; set; }
     }
 

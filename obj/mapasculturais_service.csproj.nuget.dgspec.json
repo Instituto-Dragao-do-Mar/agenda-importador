@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Projects\\importador-idm\\mapasculturais_service.csproj": {}
+    "E:\\mapasculturais_service\\mapasculturais_service.csproj": {}
   },
   "projects": {
-    "D:\\Projects\\importador-idm\\mapasculturais_service.csproj": {
+    "E:\\mapasculturais_service\\mapasculturais_service.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Projects\\importador-idm\\mapasculturais_service.csproj",
+        "projectUniqueName": "E:\\mapasculturais_service\\mapasculturais_service.csproj",
         "projectName": "mapasculturais_service",
-        "projectPath": "D:\\Projects\\importador-idm\\mapasculturais_service.csproj",
-        "packagesPath": "C:\\Users\\aliss\\.nuget\\packages\\",
-        "outputPath": "D:\\Projects\\importador-idm\\obj\\",
+        "projectPath": "E:\\mapasculturais_service\\mapasculturais_service.csproj",
+        "packagesPath": "C:\\Users\\ALISSON.JARDEL\\.nuget\\packages\\",
+        "outputPath": "E:\\mapasculturais_service\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\aliss\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ALISSON.JARDEL\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -81,7 +81,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.401\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.402\\RuntimeIdentifierGraph.json"
         }
       }
     }

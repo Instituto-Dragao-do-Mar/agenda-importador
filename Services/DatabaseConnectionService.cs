@@ -31,17 +31,19 @@ public class DatabaseConnectionService : IDatabaseConnectionService
 
 
             //Comentar para atualizar constantemente
+
             var isUpdated = await CheckIfEntityIsUpdatedByTimestamp(connection, entity);
-            // if (isUpdated > 0) 
+            // if (isUpdated > 0)
+            // {
             await ExecuteUpdateEntityCommand(connection, entity, agent);
-            
+
             switch (entity)
             {
                 case Space space:
                     await UpdateSpaceImages(connection, space);
                     break;
                 case Event @event:
-                    // await UpdateEventCategories(connection, @event);
+                    await UpdateEventCategories(connection, @event);
                     await UpdateEventImages(connection, @event);
                     await UpdateEventAgeRating(connection, @event);
                     break;
@@ -49,10 +51,12 @@ public class DatabaseConnectionService : IDatabaseConnectionService
                 //     await UpdateOcurrence(connection, ocurrence);
                 //     break;
             }
+            // }
 
             return;
         }
-        else
+
+        if (entityCount == 0)
         {
             switch (entity)
             {
@@ -62,22 +66,23 @@ public class DatabaseConnectionService : IDatabaseConnectionService
                     occurrence.Space.Id = await GetSpaceIdBySelect(connection, new Space { Id = occurrence.Space.Id });
                     await ExecuteSaveEntityCommand(connection, occurrence);
                     break;
+                // switch (entity)
+                // {
+                case Space space:
+                    await ExecuteSaveEntityCommand(connection, space);
+                    await SaveSpaceImages(connection, space);
+                    break;
+                case Event @event:
+                    await ExecuteSaveEntityCommand(connection, @event);
+                    await UpdateEventCategories(connection, @event);
+                    await UpdateEventImages(connection, @event);
+                    await UpdateEventAgeRating(connection, @event);
+                    break;
+                // }
                 default:
                     await ExecuteSaveEntityCommand(connection, entity, agent);
                     break;
             }
-        }
-
-        switch (entity)
-        {
-            case Space space:
-                await SaveSpaceImages(connection, space);
-                break;
-            case Event @event:
-                await SaveEventCategories(connection, @event);
-                await SaveEventImages(connection, @event);
-                await SaveEventAgeRating(connection, @event);
-                break;
         }
     }
 
@@ -96,9 +101,9 @@ public class DatabaseConnectionService : IDatabaseConnectionService
             $"if not exists (select * from eventosclassificacao where idevento = {eventId} and idclassificacao = {ageRatingId})" +
             $"insert into eventosclassificacao (idevento, idclassificacao) values ({eventId}, {ageRatingId})";
 
-        await ExecuteSaveLinguagens(connection, insertEventAgeRating);
+        await ExecuteDbCommand(insertEventAgeRating, connection);
     }
-    
+
     private async Task UpdateEventAgeRating(SqlConnection connection, Event @event)
     {
         var ageRating = @event.ClassificacaoEtaria;
@@ -111,14 +116,14 @@ public class DatabaseConnectionService : IDatabaseConnectionService
         if (eventId == 0) return;
 
         var updateEventAgeRating =
-            // $"begin " +
-            $"if exists (select * from eventosclassificacao where idevento = {eventId} and idclassificacao <> {ageRatingId}) " +
-            $"update eventosclassificacao set idclassificacao = {ageRatingId} where idevento = {eventId}" 
-            // +
-            // $" else insert into eventosclassificacao (idevento, idclassificacao) values ({eventId}, {ageRatingId}) end"
+                // $"begin " +
+                $"if exists (select * from eventosclassificacao where idevento = {eventId} and idclassificacao <> {ageRatingId}) " +
+                $"begin update eventosclassificacao set idclassificacao = {ageRatingId} where idevento = {eventId} end" +
+                // +
+                $" else begin insert into eventosclassificacao (idevento, idclassificacao) values ({eventId}, {ageRatingId}) end"
             ;
 
-        await ExecuteSaveLinguagens(connection, updateEventAgeRating);
+        await ExecuteDbCommand(updateEventAgeRating, connection);
     }
 
     private async Task<int> GetAgeRatingIdBySelect(SqlConnection connection, string ageRating)
@@ -143,31 +148,57 @@ public class DatabaseConnectionService : IDatabaseConnectionService
             if (eventId == 0) continue;
 
             var insertEventCategoryString =
-                $"if not exists (select * from eventoscategorias where idevento = {eventId} and idcategoria = {categoryId})" +
-                $"insert into eventoscategorias (idevento, idcategoria) values ({eventId}, {categoryId})";
+                $"if exists (select * from eventoscategorias where idevento = {eventId} and idcategoria <> '{categoryId}') " +
+                $"begin update eventoscategorias set idcategoria = '{categoryId}' where idevento = {eventId} end"
+                +
+                $" else begin insert into eventoscategorias (idevento, idcategoria) values ({eventId}, '{categoryId}') end";
 
-            await ExecuteSaveLinguagens(connection, insertEventCategoryString);
+            await ExecuteDbCommand(insertEventCategoryString, connection);
         }
     }
-    
-    private async Task UpdateEventCategories(SqlConnection connection, Event @event)
+
+    private async Task SaveEvent(SqlConnection connection, Event @event)
     {
         var linguagens = @event.Terms?.Linguagem;
         if (linguagens == null) return;
-    
+
         foreach (var linguagem in linguagens)
         {
             var categoryId = await GetCategoryIdBySelect(connection, linguagem);
             if (categoryId == 0) continue;
-    
+
             var eventId = await GetEventIdBySelect(connection, @event);
             if (eventId == 0) continue;
-    
+
             var insertEventCategoryString =
-                $"if not exists (select * from eventoscategorias where idevento = {eventId} and idcategoria = {categoryId})" +
-                $"insert into eventoscategorias (idevento, idcategoria) values ({eventId}, {categoryId})";
-    
-            await ExecuteSaveLinguagens(connection, insertEventCategoryString);
+                $"if exists (select * from eventoscategorias where idevento = {eventId} and idcategoria <> '{categoryId}') " +
+                $"begin update eventoscategorias set idcategoria = '{categoryId}' where idevento = {eventId} end"
+                +
+                $" else begin insert into eventoscategorias (idevento, idcategoria) values ({eventId}, '{categoryId}') end";
+
+            await ExecuteDbCommand(insertEventCategoryString, connection);
+        }
+    }
+
+    private async Task UpdateEventCategories(SqlConnection connection, Event @event)
+    {
+        var linguagens = @event.Terms?.Linguagem;
+        if (linguagens == null) return;
+
+        foreach (var linguagem in linguagens)
+        {
+            var categoryId = await GetCategoryIdBySelect(connection, linguagem);
+            if (categoryId == 0) continue;
+
+            var eventId = await GetEventIdBySelect(connection, @event);
+            if (eventId == 0) continue;
+
+            var insertEventCategoryString =
+                $"if not exists (select * from eventoscategorias where idevento = {eventId} and idcategoria = {categoryId}) " +
+                $"insert into eventoscategorias (idevento, idcategoria) values ({eventId}, {categoryId}) " +
+                $"else update eventoscategorias set idevento = '{eventId}', idcategoria = '{categoryId}' where idevento = {eventId}";
+
+            await ExecuteDbCommand(insertEventCategoryString, connection);
         }
     }
 
@@ -188,12 +219,12 @@ public class DatabaseConnectionService : IDatabaseConnectionService
         if (spaceId == 0) return;
 
         var insertSpaceImageString =
-            $"if not exists (select * from espacosimagens where idespaco = {spaceId} and idimagem = '{imageId}') " +
+            $"if not exists (select * from espacosimagens where idespaco = '{spaceId}' and idimagem = '{imageId}') " +
             $"begin insert into espacosimagens (idespaco, idimagem) values ({spaceId}, '{imageId}') end";
 
-        await ExecuteSaveLinguagens(connection, insertSpaceImageString);
+        await ExecuteDbCommand(insertSpaceImageString, connection);
     }
-    
+
     private async Task UpdateSpaceImages(SqlConnection connection, Space space)
     {
         var imagem = space.FilesAvatar;
@@ -211,14 +242,14 @@ public class DatabaseConnectionService : IDatabaseConnectionService
         if (spaceId == 0) return;
 
         var updateSpaceImageString =
-            // $"begin" +
-            $" if exists (select * from espacosimagens where idespaco = {spaceId} and idimagem <> '{imageId}') " +
-            $"update espacosimagens set idimagem = '{imageId}' where idespaco = {spaceId}" 
-        //     + 
-        // $" else insert into espacosimagens (idespaco, idimagem) values ({spaceId}, '{imageId}') end"
+                // $"begin" +
+                $" if exists (select * from espacosimagens where idespaco = {spaceId} and idimagem = '{imageId}') " +
+                $"begin update espacosimagens set idimagem = '{imageId}' where idespaco = {spaceId} end" +
+                //     + 
+                $" else begin insert into espacosimagens (idespaco, idimagem) values ({spaceId}, '{imageId}') end"
             ;
 
-        await ExecuteSaveLinguagens(connection, updateSpaceImageString);
+        await ExecuteDbCommand(updateSpaceImageString, connection);
     }
 
     private async Task SaveEventImages(SqlConnection connection, Event @event)
@@ -241,9 +272,9 @@ public class DatabaseConnectionService : IDatabaseConnectionService
             $"if not exists (select * from eventosimagens where idevento = {eventId} and idimagem = '{imageId}') " +
             $"begin insert into eventosimagens (idevento, idimagem) values ({eventId}, '{imageId}') end";
 
-        await ExecuteSaveLinguagens(connection, saveEventImageString);
+        await ExecuteDbCommand(saveEventImageString, connection);
     }
-    
+
     // private async Task UpdateOcurrence(SqlConnection connection, Occurrence occurrence)
     // {
     //     var saveImageString = $@"if not exists (select * from imagens where url = '{imagem.url}') " +
@@ -265,33 +296,50 @@ public class DatabaseConnectionService : IDatabaseConnectionService
     //         // $" else insert into eventosimagens (idevento, idimagem) values ({eventId}, '{imageId}') end"
     //         ;
     //
-    //     await ExecuteSaveLinguagens(connection, updateEventImageString);
+    //     await ExecuteDbCommand(connection, updateEventImageString);
     // }
     private async Task UpdateEventImages(SqlConnection connection, Event @event)
     {
         var imagem = @event.FilesAvatar;
-        if (imagem == null) return;
-
-        var saveImageString = $@"if not exists (select * from imagens where url = '{imagem.url}') " +
+        var imageId = "";
+        var saveImageString = "";
+        if (imagem == null)
+        {
+            imageId = await GetCategoryImageId(connection, @event);
+        }
+        else
+        {
+            saveImageString = $@"if not exists (select * from imagens where url = '{imagem.url}') " +
                               $@"begin insert into imagens (url, tipo) values ('{imagem.url}', 'U') end";
 
-        await ExecuteDbCommand(saveImageString, connection);
+            await ExecuteDbCommand(saveImageString, connection);
+        }
 
-        var imageId = await GetImageIdBySelect(connection, imagem.url);
+        if (imageId == "" && imagem != null)
+            imageId = await GetImageIdBySelect(connection, imagem.url);
+        
         if (string.IsNullOrEmpty(imageId)) return;
 
         var eventId = await GetEventIdBySelect(connection, @event);
         if (eventId == 0) return;
 
         var updateEventImageString =
-            // $"begin " +
-            $"if exists (select * from eventosimagens where idevento = {eventId} and idimagem <> '{imageId}') " +
-            $"begin update eventosimagens set idimagem = '{imageId}' where idevento = {eventId} end" 
-        //     +
-        // $" else insert into eventosimagens (idevento, idimagem) values ({eventId}, '{imageId}') end"
+                // $"begin " +
+                $"if exists (select * from eventosimagens where idevento = {eventId} and idimagem = '{imageId}') " +
+                $"begin update eventosimagens set idimagem = '{imageId}' where idevento = {eventId} end"
+                +
+                $" else begin insert into eventosimagens (idevento, idimagem) values ({eventId}, '{imageId}') end"
             ;
 
-        await ExecuteSaveLinguagens(connection, updateEventImageString);
+        await ExecuteDbCommand(updateEventImageString, connection);
+    }
+
+    private async Task<String> GetCategoryImageId(SqlConnection connection, Event @event)
+    {
+        var selectEventIdString =
+            $"SELECT top(1) idimagem from categorias where nome = '{@event.Terms.Linguagem.FirstOrDefault()}'";
+
+        return await ExecuteScalarDBCommand(selectEventIdString, connection);
     }
 
     private async Task<int> GetEventIdBySelect(SqlConnection connection, Event @event)
@@ -305,7 +353,7 @@ public class DatabaseConnectionService : IDatabaseConnectionService
     private async Task<int> GetSpaceIdBySelect(SqlConnection connection, Space space)
     {
         var selectSpaceIdString =
-            $"SELECT top(1) e.id from espacos e where e.idexterno = {space.Id}";
+            $"SELECT top(1) id from espacos where idexterno = {space.Id}";
 
         return int.Parse(await ExecuteScalarDBCommand(selectSpaceIdString, connection));
     }
@@ -340,10 +388,10 @@ public class DatabaseConnectionService : IDatabaseConnectionService
         return int.Parse(!string.IsNullOrEmpty(id) ? id : "0");
     }
 
-    private async Task ExecuteSaveLinguagens(SqlConnection connection, string insertEventCategoryString)
-    {
-        await ExecuteDbCommand(insertEventCategoryString, connection);
-    }
+    // private async Task ExecuteDbCommand(SqlConnection connection, string insertEventCategoryString)
+    // {
+    //     await ExecuteDbCommand(insertEventCategoryString, connection);
+    // }
 
     private async Task ExecuteUpdateEntityCommand(SqlConnection connection, BaseEntity entity, Agent? agent = null)
     {
@@ -407,7 +455,8 @@ public class DatabaseConnectionService : IDatabaseConnectionService
 
             foreach (var entity in entities)
             {
-                await SaveEntity(entity, connection, agent);
+                // if (entity.Id > 6732)
+                    await SaveEntity(entity, connection, agent);
             }
 
             _logger.LogInformation("Importação concluída para a tabela \'{TableName}\': {Now}",
@@ -473,9 +522,20 @@ public class DatabaseConnectionService : IDatabaseConnectionService
             var connection = new SqlConnection(connectionString: _configuration.GetConnectionString("Default"));
             await connection.OpenAsync();
 
+            // var eventsIds = "(" + string.Join(",", entities.Select(e => e.Id.ToString()).ToList()) + ")";
+
+            var range = Enumerable.Range(1, entities.Select(e => e.Id).Max());
+            var idsToExclude = "(" + string.Join(",", range.Where(e => !entities.Select(en => en.Id).Contains(e))) +
+                               ")";
+
+            var excludeCommandString = $@"update eventos set excluido = 1 where idexterno in {idsToExclude}";
+
+            await ExecuteDbCommand(excludeCommandString, connection);
+
             foreach (var entity in entities)
             {
-                await SaveEntity(entity, connection, agent);
+                if (entity.Id > 9860)
+                    await SaveEntity(entity, connection, agent);
             }
 
             _logger.LogInformation("Importação concluída para a tabela \'{TableName}\': {Now}",
@@ -626,7 +686,7 @@ public class DatabaseConnectionService : IDatabaseConnectionService
                     "bairro,cidade,uf,datacriacao,dataatualizacao,area,tags,site,facebook,instagram,horario,endereco,acessibilidade,acessibilidade_fisica,urlavatar,idespacoprincipal",
                 Event @event =>
                     "idexterno,nome,detalhe,detalhelongo,destaque,importado,aprovado,urlentrada," +
-                    "ativo,datahora,telefone,linguagem,datacriacao,dataatualizacao,classificacaoetaria,urlavatar",
+                    "ativo,datahora,telefone,linguagem,datacriacao,dataatualizacao,classificacaoetaria,urlavatar,excluido",
                 Occurrence occurrence =>
                     "idexterno,idevento,datahora,idespaco,nome,detalhe,horafim,frequencia," +
                     " datainicio,datafim,diasemana,preco,urlavatar",
@@ -649,30 +709,30 @@ public class DatabaseConnectionService : IDatabaseConnectionService
                 SpaceType spaceType => $@"'{spaceType.Id}', '{spaceType.Name}'",
 
                 Space space =>
-                    $@"'{space.Id}','{space.Name?.Replace("'", " ") ?? ""}',
-                    '{space.ShortDescription?.Replace("'", "''") ?? ""}',
-                    '{space.LongDescription?.Replace("'", "''") ?? ""}', {Convert.ToInt32(space.Public)},
-                    {Convert.ToInt32(agent!.SpacesIds.Contains(space.Id))}, '{space.Location?.Latitude}', '{space.Location?.Longitude}','{space.EnCep}'," +
+                    $@"'{space.Id}','{(space.Name ?? "").Replace("'", " ")}',
+                    '{(space.ShortDescription ?? "").Replace("'", "''")}',
+                    '{(space.LongDescription ?? "").Replace("'", "''")}', {Convert.ToInt32(space.Public)},
+                    {Convert.ToInt32(agent != null ? agent.SpacesIds.Contains(space.Id) : 0)}, '{space.Location?.Latitude}', '{space.Location?.Longitude}','{space.EnCep ?? ""}'," +
                     $@"'{space.EnNomeLogradouro?.Replace("'", " ") ?? ""}',
-                    '{space.EnNum ?? ""}','{space.EnComplemento?.Replace("'", " ") ?? ""}',
-                    '{space.EnBairro?.Replace("'", " ") ?? ""}','{space.EnMunicipio ?? ""}'," +
-                    $@"'{space.EnEstado ?? ""}','{space.CreateTimestamp?.Date}', '{space.UpdateTimestamp?.Date}',
+                    '{space.EnNum ?? ""}','{(space.EnComplemento ?? "").Replace("'", " ")}',
+                    '{(space.EnBairro ?? "")?.Replace("'", " ") ?? ""}','{space.EnMunicipio ?? ""}'," +
+                    $@"'{space.EnEstado ?? ""}','{space.CreateTimestamp?.Date}', '{(space.UpdateTimestamp != null ? space.UpdateTimestamp.Date : "")}',
                     '{string.Join(",", space.Terms?.Area?.ToArray() ?? Array.Empty<string>())}'," +
                     $@"'{string.Join(",", space.Terms?.Tag?.ToArray() ?? Array.Empty<string>())}',
-                    '{space.Site?.Replace("\\", "") ?? ""}','{space.Facebook?.Replace("\\", "") ?? ""}',
-                    '{space.Instagram?.Replace("\\", "") ?? ""}','{space.Horario?.Replace("'", "''").Replace("\\", "") ?? ""}',
-                    '{space.Endereco?.Replace("'", "''").Replace("\\", "") ?? ""}','{space.Acessibilidade}','{space.AcessibilidadeFisica}',
+                    '{(space.Site ?? "").Replace("\\", "")}','{(space.Facebook ?? "").Replace("\\", "")}',
+                    '{(space.Instagram ?? "").Replace("\\", "")}','{space.Horario?.Replace("'", "''").Replace("\\", "") ?? ""}',
+                    '{(space.Endereco ?? "").Replace("'", "''").Replace("\\", "") ?? ""}','{space.Acessibilidade ?? ""}','{space.AcessibilidadeFisica ?? ""}',
                     '{space.FilesAvatar?.url}', '{GetSpaceIdByExternalId(connection, space.Parent ?? 0)}'",
 
                 Event @event =>
                     $@"'{@event.Id}', '{@event.Name?.Replace("'", " ") ?? ""}',
-                    '{@event.ShortDescription?.Replace("'", " ") ?? ""}',
-                    '{@event.LongDescription?.Replace("'", " ") ?? ""}',
-                    {Convert.ToInt32(agent!.HighlightedEventsIds.Contains(@event.Id))},'1',{Convert.ToInt32(agent!.EventsIds.Contains(@event.Id))},'{@event.Site}'," +
+                    '{(@event.ShortDescription ?? "").Replace("'", " ")}',
+                    '{(@event.LongDescription ?? "").Replace("'", " ")}',
+                    {Convert.ToInt32(agent != null ? agent.HighlightedEventsIds.Contains(@event.Id) : 0)},'1',{Convert.ToInt32(agent != null ? agent!.EventsIds.Contains(@event.Id) : 0)},'{@event.Site}'," +
                     $"{Convert.ToInt32(@event.Status)}, '{@event.CreateTimestamp?.Date}'," +
                     $"'{@event.TelefonePublico?.Replace("(", "").Replace(")", "").Replace(" ", "").Replace("-", "")}'," +
                     $"'{string.Join(",", @event.Terms?.Linguagem?.ToArray() ?? Array.Empty<string>())}','{@event.CreateTimestamp?.Date}','{@event.UpdateTimestamp?.Date}','{@event.ClassificacaoEtaria}'," +
-                    $"'{@event.FilesAvatar?.url}'",
+                    $"'{@event.FilesAvatar?.url}','0'",
 
                 Occurrence occurrence =>
                     $@"'{occurrence.OccurrenceId}','{occurrence.EventId}','{occurrence.StartsOn} {occurrence.StartsAt}','{occurrence.Space?.Id}','','{occurrence.Rule?.Description.Replace("'", "''")}','{occurrence.EndsAt}','{occurrence.Rule?.Frequency}'," +
