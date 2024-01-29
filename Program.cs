@@ -25,7 +25,6 @@ public class Program
         Host.CreateDefaultBuilder(args)
             .ConfigureServices((hostContext, services) =>
             {
-                var envType = EnvironmentUtils.GetEnvironment();
                 IConfiguration configuration = hostContext.Configuration;
                 services.Configure<ApiClientConfigurations>(configuration.GetSection(nameof(ApiClientConfigurations)));
 
