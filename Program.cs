@@ -1,3 +1,4 @@
+using Domain.Utils;
 using mapasculturais_service.Configurations;
 using mapasculturais_service.Entities;
 using mapasculturais_service.Interfaces;
@@ -15,6 +16,7 @@ public class Program
            // {
            //     options.ServiceName = "Mapas Culturais Import Service";
            // }) //Run in Windows
+           .UseEnvironment(EnvironmentUtils.GetEnvironment())
            .Build();
        await builder.RunAsync();
     }
@@ -23,12 +25,12 @@ public class Program
         Host.CreateDefaultBuilder(args)
             .ConfigureServices((hostContext, services) =>
             {
+                var envType = EnvironmentUtils.GetEnvironment();
                 IConfiguration configuration = hostContext.Configuration;
                 services.Configure<ApiClientConfigurations>(configuration.GetSection(nameof(ApiClientConfigurations)));
 
                 services.AddSingleton<IMapasCulturaisService, MapasCulturaisService>();
                 services.AddSingleton<IDatabaseConnectionService, DatabaseConnectionService>();
-
 
                 services.AddHostedService<Worker>();
             });

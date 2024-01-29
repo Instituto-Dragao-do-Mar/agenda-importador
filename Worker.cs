@@ -39,10 +39,10 @@ public class Worker : BackgroundService
 
             var agent = new Agent
             {
-                SpacesIds = spacesIdsLists, EventsIds = eventsIdsLists,
+                SpacesIds = spacesIdsLists,
+                EventsIds = eventsIdsLists,
+                HighlightedEventsIds = highlightedEventsIdsLists
             };
-            
-            agent.HighlightedEventsIds = highlightedEventsIdsLists;
 
             // await _databaseConnectionService.UpdateSpacesSetVerifiedByAgent(spacesIdsLists);
             // await _databaseConnectionService.UpdateEventsSetVerifiedByAgent(eventsIdsLists);

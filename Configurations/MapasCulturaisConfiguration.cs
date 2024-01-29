@@ -1,11 +1,15 @@
-﻿namespace mapasculturais_service.Configurations;
+﻿using Domain.Utils;
+
+namespace mapasculturais_service.Configurations;
 
 public class MapasCulturaisConfiguration
 {
     #region Endpoints
 
-    public readonly string BaseUrl = "https://mapacultural.secult.ce.gov.br/api/";
-    
+    public readonly static string BaseUrlHomolog = "https://mapaculturalhomolog.secult.ce.gov.br/api/";
+    public readonly static string BaseUrlProduction = "https://mapacultural.secult.ce.gov.br/api/";
+    public readonly string BaseUrl = EnvironmentUtils.EnvIsProduction() ? BaseUrlProduction : BaseUrlHomolog;
+
     public readonly string Agents = "agent/find";
     public readonly string Events = "event/find";
 
